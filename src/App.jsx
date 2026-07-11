@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function App() {
-  const INSTRUCTOR_PIN = "1234";
+  const INSTRUCTOR_PIN = "1234"; // ලැබ් Instructor ගේ රහස් PIN අංකය
 
   const [pcs, setPcs] = useState(() => {
     const savedPcs = localStorage.getItem('aurex_lab_pcs');
@@ -35,6 +35,7 @@ function App() {
   const [durationInput, setDurationInput] = useState('1');
   const [statusInput, setStatusInput] = useState('available');
   
+  // 🔒 ඕනෑම PC එකක් ක්ලික් කරද්දී PIN එක අනිවාර්ය කරන්න False දානවා
   const [isVerified, setIsVerified] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [, setTick] = useState(0);
@@ -44,7 +45,7 @@ function App() {
     localStorage.setItem('aurex_lab_pcs', JSON.stringify(pcs));
   }, [pcs]);
 
-  // ⏱️ Live Countdown, Sound Alerts & Auto-Release
+  // ⏱️ Live Countdown & Auto-Release
   useEffect(() => {
     const interval = setInterval(() => {
       setTick(t => t + 1);
@@ -53,7 +54,6 @@ function App() {
         if (pc.status === 'occupied' && pc.endTime) {
           const timeLeft = Math.floor((pc.endTime - Date.now()) / 1000);
           
-          // වෙලාව හරියටම ඉවර වුණු සැනින් Beep හඬක් සහ Notification එකක් ලබාදීම
           if (timeLeft === 0) {
             playBeepSound();
             alert(`⚠️ Time Expired! ${pc.name} used by ${pc.studentName} (${pc.studentId}) is now released.`);
@@ -68,7 +68,6 @@ function App() {
     return () => clearInterval(interval);
   }, [pcs]);
 
-  // 🎵 Beep Alert එකක් ප්ලේ කරන්න බ්‍රවුසර් එකේම සවුන්ඩ් සිස්ටම් එක පාවිච්චි කරන ශ්‍රිතය
   const playBeepSound = () => {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -77,10 +76,10 @@ function App() {
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Sound Frequency
+      oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
       gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
       oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.4); // තත්පර 0.4ක් ප්ලේ වෙයි
+      oscillator.stop(audioCtx.currentTime + 0.4);
     } catch (e) {
       console.log("Audio alert error: ", e);
     }
@@ -91,7 +90,6 @@ function App() {
   const maintenanceCount = pcs.filter(pc => pc.status === 'maintenance').length;
   const totalPcs = pcs.length;
 
-  // 📊 Analytics Bars සඳහා ප්‍රතිශත (Percentages) හැදීම
   const availPercent = (availableCount / totalPcs) * 100;
   const occupPercent = (occupiedCount / totalPcs) * 100;
   const maintPercent = (maintenanceCount / totalPcs) * 100;
@@ -103,7 +101,9 @@ function App() {
     setDurationInput(pc.duration || '1');
     setStatusInput(pc.status);
     setPinInput('');
-    setIsVerified(pc.status === 'available');
+    
+    // 🔥 මරුම වෙනස: හිස් PC එකක් වුණත්, දැනට පාවිච්චි වෙන එකක් වුණත් හැම එකටම PIN එක අනිවාර්යයි!
+    setIsVerified(false); 
     setIsModalOpen(true);
   };
 
@@ -143,14 +143,11 @@ function App() {
     if (e.key === 'Enter') handleConfirmBooking();
   };
 
-  // ⏱️ ඉතිරි වෙලාව බලාගන්න සහ Alert එක ළඟදී Blink කරන්න හදපු ශ්‍රිතය
   const renderTimeLeft = (endTime) => {
     if (!endTime) return null;
     const totalSeconds = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    
-    // වෙලාව ඉවර වෙන්න තත්පර 10ක් හෝ ඊට අඩු නම් රතු පාටින් බ්ලින්ක් වෙනවා
     const isUrgent = totalSeconds <= 10;
 
     return (
@@ -168,37 +165,29 @@ function App() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '20px', backgroundColor: '#f4f6f9', minHeight: '100vh', textAlign: 'center' }}>
-      
-      {/* CSS Animation for Blinking Alert */}
       <style>{`
-        @keyframes blinker {
-          50% { opacity: 0; }
-        }
+        @keyframes blinker { 50% { opacity: 0; } }
       `}</style>
 
       <h1>Aurex Computer Lab Dashboard</h1>
-      <p>Advanced Management, Real-time Analytics & Audio Alerts</p>
+      <p>Authorized Access Only - Real-time Analytics & Safe Guard</p>
 
-      {/* 📊 Section 1: Lab Analytics Dashboard */}
+      {/* 📊 Analytics Dashboard */}
       <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', maxWidth: '1000px', margin: '0 auto 30px auto', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', textAlign: 'left' }}>
         <h4 style={{ margin: '0 0 15px 0', color: '#333' }}>📊 Lab Resource Utilization Analytics</h4>
-        
-        {/* Progress Bar Component */}
         <div style={{ display: 'flex', height: '24px', borderRadius: '5px', overflow: 'hidden', backgroundColor: '#eee', marginBottom: '15px' }}>
           <div style={{ width: `${availPercent}%`, backgroundColor: '#2ecc71', transition: '0.5s' }}></div>
           <div style={{ width: `${occupPercent}%`, backgroundColor: '#e74c3c', transition: '0.5s' }}></div>
           <div style={{ width: `${maintPercent}%`, backgroundColor: '#f39c12', transition: '0.5s' }}></div>
         </div>
-
-        {/* Counters & Info */}
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-          <div>🟢 <span style={{ fontWeight: 'bold' }}>Available:</span> {availableCount} Pcs ({availPercent.toFixed(0)}%)</div>
-          <div>🔴 <span style={{ fontWeight: 'bold' }}>In Use:</span> {occupiedCount} Pcs ({occupPercent.toFixed(0)}%)</div>
-          <div>🟠 <span style={{ fontWeight: 'bold' }}>Broken/Maintenance:</span> {maintenanceCount} Pcs ({maintPercent.toFixed(0)}%)</div>
+          <div>🟢 <span style={{ fontWeight: 'bold' }}>Available:</span> {availableCount} Pcs</div>
+          <div>🔴 <span style={{ fontWeight: 'bold' }}>In Use:</span> {occupiedCount} Pcs</div>
+          <div>🟠 <span style={{ fontWeight: 'bold' }}>Broken:</span> {maintenanceCount} Pcs</div>
         </div>
       </div>
 
-      {/* 💻 Section 2: PC Grid Items */}
+      {/* 💻 PC Grid Items */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(145px, 1fr))', gap: '20px', maxWidth: '1000px', margin: '0 auto' }}>
         {pcs.map(pc => (
           <div 
@@ -231,22 +220,24 @@ function App() {
         ))}
       </div>
 
-      {/* 🔒 Section 3: Pop-up Settings (Modal Box) */}
+      {/* 🔒 Pop-up (Modal Box) */}
       {isModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '10px', width: '320px', textAlign: 'left' }}>
             
+            {/* 🔒 පියවර 1: හැම PC එකකටම මුලින්ම PIN එක ඉල්ලනවා */}
             {!isVerified ? (
               <div>
-                <h3 style={{ marginTop: 0, color: '#e74c3c' }}>🔒 Instructor Verification</h3>
-                <p style={{ fontSize: '14px', color: '#666' }}>Please enter Instructor PIN to unlock and edit details.</p>
-                <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="Enter PIN (Default: 1234)" style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '5px', border: '1px solid #ccc', boxSizing: 'border-box', textAlign: 'center', fontSize: '18px' }} onKeyDown={(e) => e.key === 'Enter' && handleVerifyPin()} />
+                <h3 style={{ marginTop: 0, color: '#e74c3c' }}>🔒 Instructor Required</h3>
+                <p style={{ fontSize: '14px', color: '#666' }}>Only a Lab Instructor or Admin can book or edit this PC. Please enter the PIN.</p>
+                <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="Enter Instructor PIN" style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '5px', border: '1px solid #ccc', boxSizing: 'border-box', textAlign: 'center', fontSize: '18px' }} onKeyDown={(e) => e.key === 'Enter' && handleVerifyPin()} />
                 <div style={{ textAlign: 'right' }}>
                   <button onClick={() => setIsModalOpen(false)} style={{ background: '#bdc3c7', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '5px', marginRight: '10px', cursor: 'pointer' }}>Cancel</button>
-                  <button onClick={handleVerifyPin} style={{ background: '#3498db', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer' }}>Unlock</button>
+                  <button onClick={handleVerifyPin} style={{ background: '#3498db', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer' }}>Verify PIN</button>
                 </div>
               </div>
             ) : (
+              /* 🔓 පියවර 2: PIN එක හරි නම් විතරක් පෙනෙන Form එක */
               <div>
                 <h3 style={{ marginTop: 0 }}>Manage {selectedPc?.name}</h3>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>PC Status:</label>

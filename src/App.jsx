@@ -11,7 +11,7 @@ function App() {
         if (pc.status === 'occupied' && pc.endTime) {
           const timeLeft = Math.max(0, Math.floor((pc.endTime - Date.now()) / 1000));
           if (timeLeft === 0) {
-            return { id: pc.id, name: pc.name, status: 'available', studentName: '', studentId: '', duration: '1', endTime: null };
+            return { id: pc.id, name: pc.name, status: 'available', studentName: '', studentId: '', hours: '1', minutes: '0', endTime: null };
           }
         }
         return pc;
@@ -23,7 +23,8 @@ function App() {
       status: 'available',
       studentName: '',
       studentId: '',
-      duration: '1',
+      hours: '1', // Default පැය 1
+      minutes: '0', // Default මිනිත්තු 0
       endTime: null
     }));
   });
@@ -32,10 +33,12 @@ function App() {
   const [selectedPc, setSelectedPc] = useState(null);
   const [studentNameInput, setStudentNameInput] = useState('');
   const [studentIdInput, setStudentIdInput] = useState('');
-  const [durationInput, setDurationInput] = useState('1');
-  const [statusInput, setStatusInput] = useState('available');
   
-  // 🔒 ඕනෑම PC එකක් ක්ලික් කරද්දී PIN එක අනිවාර්ය කරන්න False දානවා
+  // 🔥 අලුත් වෙනස: පැය සහ මිනිත්තු අතින්ම වෙනස් කරන්න Inputs දෙකක්
+  const [hoursInput, setHoursInput] = useState('1');
+  const [minutesInput, setMinutesInput] = useState('0');
+  
+  const [statusInput, setStatusInput] = useState('available');
   const [isVerified, setIsVerified] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [, setTick] = useState(0);
@@ -59,7 +62,7 @@ function App() {
             alert(`⚠️ Time Expired! ${pc.name} used by ${pc.studentName} (${pc.studentId}) is now released.`);
             
             setPcs(currentPcs => 
-              currentPcs.map(p => p.id === pc.id ? { ...p, status: 'available', studentName: '', studentId: '', duration: '1', endTime: null } : p)
+              currentPcs.map(p => p.id === pc.id ? { ...p, status: 'available', studentName: '', studentId: '', hours: '1', minutes: '0', endTime: null } : p)
             );
           }
         }
@@ -98,11 +101,21 @@ function App() {
     setSelectedPc(pc);
     setStudentNameInput(pc.studentName || '');
     setStudentIdInput(pc.studentId || '');
-    setDurationInput(pc.duration || '1');
+    
+    // දැනට ඉතිරි වෙලාවක් තියෙනවා නම්, ඒක Input කොටු වලට ලෝඩ් කරනවා (Edit කරන්න ලේසි වෙන්න)
+    if (pc.status === 'occupied' && pc.endTime) {
+      const totalSecs = Math.max(0, Math.floor((pc.endTime - Date.now()) / 1000));
+      const currentHrs = Math.floor(totalSecs / 3600);
+      const currentMins = Math.floor((totalSecs % 3600) / 60);
+      setHoursInput(String(currentHrs));
+      setMinutesInput(String(currentMins));
+    } else {
+      setHoursInput(pc.hours || '1');
+      setMinutesInput(pc.minutes || '0');
+    }
+    
     setStatusInput(pc.status);
     setPinInput('');
-    
-    // 🔥 මරුම වෙනස: හිස් PC එකක් වුණත්, දැනට පාවිච්චි වෙන එකක් වුණත් හැම එකටම PIN එක අනිවාර්යයි!
     setIsVerified(false); 
     setIsModalOpen(true);
   };
@@ -127,12 +140,21 @@ function App() {
       }
     }
 
-    const durationInMs = parseFloat(durationInput) * 60 * 60 * 1000;
+    // ⏱️ පැය සහ මිනිත්තු මිලි තත්පර (Milliseconds) වලට හැරවීම
+    const hrs = parseInt(hoursInput) || 0;
+    const mins = parseInt(minutesInput) || 0;
+    
+    if (statusInput === 'occupied' && hrs === 0 && mins === 0) {
+      alert('Please enter a valid duration (Hours or Minutes)!');
+      return;
+    }
+
+    const durationInMs = ((hrs * 60) + mins) * 60 * 1000;
     const endTime = statusInput === 'occupied' ? Date.now() + durationInMs : null;
 
     setPcs(pcs.map(pc => 
       pc.id === selectedPc.id 
-        ? { ...pc, status: statusInput, studentName: statusInput === 'occupied' ? studentNameInput : '', studentId: statusInput === 'occupied' ? studentIdInput : '', duration: durationInput, endTime: endTime }
+        ? { ...pc, status: statusInput, studentName: statusInput === 'occupied' ? studentNameInput : '', studentId: statusInput === 'occupied' ? studentIdInput : '', hours: String(hrs), minutes: String(mins), endTime: endTime }
         : pc
     ));
 
@@ -146,7 +168,8 @@ function App() {
   const renderTimeLeft = (endTime) => {
     if (!endTime) return null;
     const totalSeconds = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
+    const hrs = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
     const isUrgent = totalSeconds <= 10;
 
@@ -158,7 +181,7 @@ function App() {
         fontWeight: 'bold',
         animation: isUrgent ? 'blinker 1s linear infinite' : 'none'
       }}>
-        ⏳ {String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}
+        ⏳ {hrs > 0 ? `${hrs}:` : ''}{String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}
       </span>
     );
   };
@@ -170,7 +193,7 @@ function App() {
       `}</style>
 
       <h1>Aurex Computer Lab Dashboard</h1>
-      <p>Authorized Access Only - Real-time Analytics & Safe Guard</p>
+      <p>Custom Time Management, Real-time Analytics & Safe Guard</p>
 
       {/* 📊 Analytics Dashboard */}
       <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', maxWidth: '1000px', margin: '0 auto 30px auto', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', textAlign: 'left' }}>
@@ -225,7 +248,6 @@ function App() {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '10px', width: '320px', textAlign: 'left' }}>
             
-            {/* 🔒 පියවර 1: හැම PC එකකටම මුලින්ම PIN එක ඉල්ලනවා */}
             {!isVerified ? (
               <div>
                 <h3 style={{ marginTop: 0, color: '#e74c3c' }}>🔒 Instructor Required</h3>
@@ -237,7 +259,6 @@ function App() {
                 </div>
               </div>
             ) : (
-              /* 🔓 පියවර 2: PIN එක හරි නම් විතරක් පෙනෙන Form එක */
               <div>
                 <h3 style={{ marginTop: 0 }}>Manage {selectedPc?.name}</h3>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>PC Status:</label>
@@ -255,13 +276,18 @@ function App() {
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Student ID / Barcode:</label>
                     <input type="text" value={studentIdInput} onChange={(e) => setStudentIdInput(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '15px', borderRadius: '5px', border: '1px solid #ccc', boxSizing: 'border-box' }} onKeyDown={handleKeyDown} autoFocus />
 
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Duration:</label>
-                    <select value={durationInput} onChange={(e) => setDurationInput(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '20px', borderRadius: '5px', border: '1px solid #ccc' }}>
-                      <option value="0.00416">15 Seconds (Quick Test)</option>
-                      <option value="0.0166">1 Minute (Test)</option>
-                      <option value="1">1 Hour</option>
-                      <option value="2">2 Hours</option>
-                    </select>
+                    {/* 🔥 නවතම Custom Time Input කොටස */}
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Set Duration:</label>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: '12px', color: '#666' }}>Hours</span>
+                        <input type="number" min="0" max="24" value={hoursInput} onChange={(e) => setHoursInput(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc', boxSizing: 'border-box', textAlign: 'center' }} onKeyDown={handleKeyDown} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: '12px', color: '#666' }}>Minutes</span>
+                        <input type="number" min="0" max="59" value={minutesInput} onChange={(e) => setMinutesInput(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc', boxSizing: 'border-box', textAlign: 'center' }} onKeyDown={handleKeyDown} />
+                      </div>
+                    </div>
                   </>
                 )}
 

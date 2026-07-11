@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 function App() {
   // ⚙️ Instructor PIN & Hourly Rate (Default 100 LKR)
@@ -49,11 +49,16 @@ function App() {
   });
   const [showIncome, setShowIncome] = useState(false);
 
-  // 🔍 Search & UI States
+  // 🔍 Search, Scan & UI States
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedPc, setSelectedPc] = useState(null);
+  
+  // 🖨️ Barcode / QR Scanner States
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [scanNotification, setScanNotification] = useState(null);
+  const barcodeInputRef = useRef(null);
   
   // Form Inputs
   const [studentNameInput, setStudentNameInput] = useState('');
@@ -83,6 +88,18 @@ function App() {
   useEffect(() => {
     localStorage.setItem('aurex_dark_mode', darkMode);
   }, [darkMode]);
+
+  // 🖨️ Auto-Focus Scanner Input continuously
+  useEffect(() => {
+    const keepFocus = () => {
+      if (barcodeInputRef.current && !isModalOpen && !isSettingsOpen) {
+        barcodeInputRef.current.focus();
+      }
+    };
+    keepFocus();
+    const interval = setInterval(keepFocus, 2000);
+    return () => clearInterval(interval);
+  }, [isModalOpen, isSettingsOpen]);
 
   // ⏱️ Live Countdown & Auto-Release
   useEffect(() => {
@@ -135,6 +152,52 @@ function App() {
     }
   };
 
+  // 🖨️ Handle Scanner Event (When Student Scans QR/Barcode)
+  const handleBarcodeSubmit = (e) => {
+    e.preventDefault();
+    const scannedId = barcodeInput.trim();
+    if (!scannedId) return;
+
+    // ලැබ් එකේ දැනට හිස්ව තියෙන පළමු PC එක සොයයි
+    const nextAvailablePc = pcs.find(pc => pc.status === 'available');
+
+    if (!nextAvailablePc) {
+      setScanNotification({ type: 'error', message: `❌ Scan Failed: No available PCs in the lab!` });
+      setBarcodeInput('');
+      setTimeout(() => setScanNotification(null), 4000);
+      return;
+    }
+
+    // Default පැය 1ක බිල ගණනය කරයි
+    const defaultDurationMs = 1 * 60 * 60 * 1000; 
+    const endTime = Date.now() + defaultDurationMs;
+    const calculatedCost = hourlyRate; 
+
+    const logTime = new Date().toLocaleTimeString();
+    const logDate = new Date().toLocaleDateString();
+
+    // සෙෂන් එක ඔටෝ ලොග් වේ
+    setHistory(prev => [{
+      pcName: nextAvailablePc.name,
+      studentName: `Student (${scannedId})`,
+      studentId: scannedId,
+      action: 'QR / Barcode Auto-Assign',
+      cost: calculatedCost,
+      time: `${logDate} ${logTime}`
+    }, ...prev]);
+
+    // PC එක Occupied තත්ත්වයට පත් කරයි
+    setPcs(pcs.map(pc => 
+      pc.id === nextAvailablePc.id 
+        ? { ...pc, status: 'occupied', studentName: `Student (${scannedId})`, studentId: scannedId, hours: '1', minutes: '0', endTime: endTime, sessionCost: calculatedCost }
+        : pc
+    ));
+
+    setScanNotification({ type: 'success', message: `✅ ${nextAvailablePc.name} successfully assigned to Student ID: ${scannedId} (1 Hour)` });
+    setBarcodeInput('');
+    setTimeout(() => setScanNotification(null), 4000);
+  };
+
   // 💵 Calculate current live cost for form input
   const calculateInputCost = () => {
     const hrs = parseFloat(hoursInput) || 0;
@@ -143,7 +206,7 @@ function App() {
     return Math.round(totalHours * hourlyRate);
   };
 
-  // 📊 Analytics Calculations & Secret Total Income Tracker
+  // 📊 Analytics Calculations
   const availableCount = pcs.filter(pc => pc.status === 'available').length;
   const occupiedCount = pcs.filter(pc => pc.status === 'occupied').length;
   const maintenanceCount = pcs.filter(pc => pc.status === 'maintenance').length;
@@ -220,7 +283,6 @@ function App() {
       actionText = 'Marked Broken';
     }
 
-    // සෙෂන් එකක් පටන් ගනිද්දීම හෝ අප්ඩේට් වෙද්දීම ආදායම් වාර්තාවට එකතු වේ
     setHistory(prev => [{
       pcName: selectedPc.name,
       studentName: statusInput === 'occupied' ? studentNameInput : '-',
@@ -288,7 +350,7 @@ function App() {
   const isPcMatched = (pc) => {
     if (!searchQuery.trim()) return false;
     const q = searchQuery.trim().toLowerCase();
-    return pc.studentName.toLowerCase() === q || pc.studentId.toLowerCase() === q;
+    return pc.studentName.toLowerCase().includes(q) || pc.studentId.toLowerCase().includes(q);
   };
 
   // Theme Styles
@@ -301,6 +363,37 @@ function App() {
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '20px', backgroundColor: themeBg, color: themeText, minHeight: '100vh', textAlign: 'center', transition: '0.3s' }}>
       
+      {/* 🖨️ Invisible Barcode Reader Listener */}
+      <form onSubmit={handleBarcodeSubmit} style={{ position: 'absolute', opacity: 0, top: -100 }}>
+        <input 
+          ref={barcodeInputRef}
+          type="text" 
+          value={barcodeInput}
+          onChange={(e) => setBarcodeInput(e.target.value)}
+          placeholder="Scanner Listener Active"
+        />
+      </form>
+
+      {/* 🔔 Scanner Toast Notification popup */}
+      {scanNotification && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: scanNotification.type === 'success' ? '#2ecc71' : '#e74c3c',
+          color: 'white',
+          padding: '12px 30px',
+          borderRadius: '30px',
+          fontWeight: 'bold',
+          zIndex: 9999,
+          boxShadow: '0 4px 15px rgba(0,0,0,0.25)',
+          fontSize: '15px'
+        }}>
+          {scanNotification.message}
+        </div>
+      )}
+
       <style>{`
         @keyframes blinker { 50% { opacity: 0; } }
         .pc-card {
@@ -323,6 +416,9 @@ function App() {
         <button onClick={() => setDarkMode(!darkMode)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>
           {darkMode ? '☀️ Light' : '🌙 Dark'}
         </button>
+        <div style={{ fontSize: '12px', color: '#2ecc71', fontWeight: 'bold', backgroundColor: darkMode ? '#1a202c' : '#e8f5e9', padding: '6px 12px', borderRadius: '15px', border: '1px solid #2ecc71' }}>
+          📸 Barcode Scanner Mode Active (Ready to Scan Card)
+        </div>
         <button onClick={() => setIsSettingsOpen(true)} style={{ padding: '8px 15px', background: '#7f8c8d', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
           ⚙️ Settings
         </button>
@@ -494,7 +590,6 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Live Bill Amount Notification */}
                     <div style={{ backgroundColor: darkMode ? '#1a202c' : '#e8f5e9', padding: '10px', borderRadius: '5px', fontWeight: 'bold', color: '#2ecc71', textAlign: 'center', marginBottom: '20px', border: '1px solid #2ecc71' }}>
                       💵 Est. Total Bill: Rs. {calculateInputCost()}/=
                     </div>
@@ -511,7 +606,7 @@ function App() {
         </div>
       )}
 
-      {/* ⚙️ Instructor Settings Modal (With Pricing Configuration) */}
+      {/* ⚙️ Instructor Settings Modal */}
       {isSettingsOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: themeCardBg, padding: '30px', borderRadius: '10px', width: '320px', textAlign: 'left', border: `1px solid ${themeBorder}`, color: themeText }}>

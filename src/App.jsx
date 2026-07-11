@@ -7,6 +7,7 @@ function App() {
       name: `PC - ${String(i + 1).padStart(2, '0')}`,
       status: 'available', // available, occupied, maintenance
       studentName: '',
+      studentId: '', // අලුතින් එකතු කල Student ID එක
       duration: '1'
     }))
   );
@@ -14,6 +15,7 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPc, setSelectedPc] = useState(null);
   const [studentNameInput, setStudentNameInput] = useState('');
+  const [studentIdInput, setStudentIdInput] = useState(''); // ID Input State
   const [durationInput, setDurationInput] = useState('1');
   const [statusInput, setStatusInput] = useState('available');
 
@@ -24,15 +26,22 @@ function App() {
   const handlePcClick = (pc) => {
     setSelectedPc(pc);
     setStudentNameInput(pc.studentName || '');
+    setStudentIdInput(pc.studentId || '');
     setDurationInput(pc.duration || '1');
     setStatusInput(pc.status);
     setIsModalOpen(true);
   };
 
   const handleConfirmBooking = () => {
-    if (statusInput === 'occupied' && studentNameInput.trim() === '') {
-      alert('Please enter student name!');
-      return;
+    if (statusInput === 'occupied') {
+      if (studentNameInput.trim() === '') {
+        alert('Please enter student name!');
+        return;
+      }
+      if (studentIdInput.trim() === '') {
+        alert('Please enter or scan Student ID/Barcode!');
+        return;
+      }
     }
 
     setPcs(pcs.map(pc => 
@@ -41,6 +50,7 @@ function App() {
             ...pc, 
             status: statusInput, 
             studentName: statusInput === 'occupied' ? studentNameInput : '', 
+            studentId: statusInput === 'occupied' ? studentIdInput : '', 
             duration: statusInput === 'occupied' ? durationInput : '1' 
           }
         : pc
@@ -49,17 +59,23 @@ function App() {
     setIsModalOpen(false);
   };
 
-  // Status අනුව පාට තෝරන function එක
+  // Barcode එකක් ස්කෑන් කරලා හෝ ID එක ගහලා Enter ඔබපු ගමන්ම Save වෙන්න හදපු Function එක
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleConfirmBooking();
+    }
+  };
+
   const getStatusColor = (status) => {
-    if (status === 'available') return '#2ecc71'; // Green
-    if (status === 'occupied') return '#e74c3c';  // Red
-    return '#f39c12'; // Orange for Maintenance
+    if (status === 'available') return '#2ecc71';
+    if (status === 'occupied') return '#e74c3c';
+    return '#f39c12';
   };
 
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '20px', backgroundColor: '#f4f6f9', minHeight: '100vh', textAlign: 'center' }}>
       <h1>Aurex Computer Lab Dashboard</h1>
-      <p>Real-time Lab Seating & Maintenance Arrangement</p>
+      <p>Real-time Lab Seating, Student ID & Maintenance Management</p>
 
       {/* Counters */}
       <div style={{ marginBottom: '30px', display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -95,7 +111,11 @@ function App() {
             </div>
             <div style={{ fontWeight: 'bold', margin: '5px 0' }}>{pc.name}</div>
             <div style={{ fontSize: '12px', color: '#7f8c8d', textTransform: 'capitalize' }}>
-              {pc.status === 'maintenance' ? 'Broken' : pc.status === 'occupied' ? `In Use (${pc.studentName})` : 'Available'}
+              {pc.status === 'maintenance' 
+                ? 'Broken' 
+                : pc.status === 'occupied' 
+                  ? `${pc.studentName} (${pc.studentId})` // මෙතන දැන් ID එකත් පේනවා
+                  : 'Available'}
             </div>
           </div>
         ))}
@@ -127,6 +147,18 @@ function App() {
                   onChange={(e) => setStudentNameInput(e.target.value)}
                   placeholder="Enter student name" 
                   style={{ width: '100%', padding: '8px', marginBottom: '15px', borderRadius: '5px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  onKeyDown={handleKeyDown}
+                />
+
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Student ID / Barcode:</label>
+                <input 
+                  type="text" 
+                  value={studentIdInput}
+                  onChange={(e) => setStudentIdInput(e.target.value)}
+                  placeholder="Scan Barcode or Enter ID" 
+                  style={{ width: '100%', padding: '8px', marginBottom: '15px', borderRadius: '5px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  onKeyDown={handleKeyDown} // Enter ඔබපු ගමන්ම සේව් වෙන්න
+                  autoFocus // බොක්ස් එක ඕපන් වුන ගමන් බාර්කෝඩ් එක ස්කෑන් කරන්න ලේසි වෙන්න
                 />
 
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Duration:</label>

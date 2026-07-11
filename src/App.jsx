@@ -91,7 +91,6 @@ function App() {
             playBeepSound();
             alert(`⚠️ Time Expired! ${pc.name} used by ${pc.studentName} (${pc.studentId}) is now released.`);
             
-            // History එකට Release වුණු බව සටහන් කිරීම
             const logTime = new Date().toLocaleTimeString();
             const logDate = new Date().toLocaleDateString();
             setHistory(prev => [{
@@ -192,7 +191,6 @@ function App() {
     const durationInMs = ((hrs * 60) + mins) * 60 * 1000;
     const endTime = statusInput === 'occupied' ? Date.now() + durationInMs : null;
 
-    // 📜 History Log එකට ඇතුළත් කිරීම
     const logTime = new Date().toLocaleTimeString();
     const logDate = new Date().toLocaleDateString();
     let actionText = '';
@@ -221,7 +219,6 @@ function App() {
     setIsModalOpen(false);
   };
 
-  // PIN එක වෙනස් කිරීමේ Action එක
   const handleChangePin = () => {
     if (currentPinInput === instructorPin) {
       if (newPinInput.trim().length < 4) {
@@ -266,13 +263,13 @@ function App() {
     );
   };
 
-  // 🔍 Search matching log
+  // 🔥 වෙනස් කළ කොටස: PC Name සෙවීම අයින් කර, Student Name හෝ Student ID එක හරියටම ගැලපේ නම් පමණක් Highlight කරයි.
   const isPcMatched = (pc) => {
-    if (!searchQuery) return false;
-    const q = searchQuery.toLowerCase();
-    return pc.name.toLowerCase().includes(q) || 
-           pc.studentName.toLowerCase().includes(q) || 
-           pc.studentId.toLowerCase().includes(q);
+    if (!searchQuery.trim()) return false;
+    const q = searchQuery.trim().toLowerCase();
+    
+    return pc.studentName.toLowerCase() === q || 
+           pc.studentId.toLowerCase() === q;
   };
 
   // Theme Styles
@@ -305,7 +302,7 @@ function App() {
       <div style={{ maxWidth: '1000px', margin: '0 auto 20px auto' }}>
         <input 
           type="text" 
-          placeholder="🔍 Search Student Name, ID or PC Number..." 
+          placeholder="🔍 Enter exact Student Name or Student ID to find their PC..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{ width: '100%', padding: '12px 20px', fontSize: '16px', borderRadius: '8px', border: `1px solid ${themeBorder}`, backgroundColor: themeCardBg, color: themeText, boxSizing: 'border-box' }}
@@ -344,7 +341,7 @@ function App() {
                 cursor: 'pointer',
                 transition: '0.2s',
                 transform: matched ? 'scale(1.05)' : 'none',
-                boxShadow: matched ? '0 4px 15px rgba(52, 152, 219, 0.4)' : 'none'
+                boxShadow: matched ? '0 4px 15px rgba(52, 152, 219, 0.6)' : 'none'
               }}
             >
               <div style={{ fontSize: '24px' }}>{pc.status === 'maintenance' ? '🛠️' : '💻'}</div>
